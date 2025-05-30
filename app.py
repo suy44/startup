@@ -17,7 +17,7 @@ def upload():
     with open(filename, "w") as f:
         f.write(content)
 
-    # Execute the SFTP put command using lftp
+    # Put file to SFTP via lftp
     sftp_user = os.environ.get("SFTP_USER")
     sftp_pass = os.environ.get("SFTP_PASS")
     sftp_host = os.environ.get("SFTP_HOST")
@@ -25,9 +25,12 @@ def upload():
     sftp_command = f"""
     echo 'put {filename}' | lftp -u {sftp_user},{sftp_pass} sftp://{sftp_host}
     """
-
     result = os.system(sftp_command)
     if result != 0:
         return "❌ Failed to upload via SFTP.", 500
 
     return "✅ File uploaded successfully!"
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))  # Render provides PORT variable
+    app.run(host="0.0.0.0", port=port)
