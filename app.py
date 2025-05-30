@@ -9,33 +9,32 @@ def upload_to_sftp():
     try:
         message = request.args.get("message", "Empty message")
 
-        # Save message to a temporary local file
+        # Save to a temporary local file on the Render server
         local_path = "/tmp/uploaded_message.txt"
         with open(local_path, "w") as f:
             f.write(message)
 
-        # SFTP connection details from environment variables
+        # SFTP connection details
         host = os.environ.get("SFTP_HOST")
         port = 22
         username = os.environ.get("SFTP_USER")
         password = os.environ.get("SFTP_PASS")
 
-        # Connect to SFTP
         transport = paramiko.Transport((host, port))
         transport.connect(username=username, password=password)
         sftp = paramiko.SFTPClient.from_transport(transport)
 
-        # Normalize remote home directory path
-        remote_home = sftp.normalize(".")
-        remote_path = f"{remote_home}/message.txt"
+        # Change directory explicitly to "home"
+        sftp.chdir("home")
 
-        # Upload the local file to remote path
+        # Upload file in current remote directory ("home")
+        remote_path = "message.txt"
         sftp.put(local_path, remote_path)
 
         sftp.close()
         transport.close()
 
-        return f"✅ File uploaded with message: {message}"
+        return f"✅ File uploaded inside /home with message: {message}"
 
     except Exception as e:
         return f"❌ Failed to upload file. Error: {str(e)}", 500
