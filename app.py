@@ -1,5 +1,6 @@
 from flask import Flask, request
 import os
+import paramiko
 
 app = Flask(__name__)
 
@@ -13,24 +14,32 @@ def upload():
     filename = data.get("filename", "log.txt")
     content = data.get("content", "")
 
-    # Save content to file
+    # Save content to local file
     with open(filename, "w") as f:
         f.write(content)
 
-    # Put file to SFTP via lftp
-    sftp_user = os.environ.get("SFTP_USER")
-    sftp_pass = os.environ.get("SFTP_PASS")
-    sftp_host = os.environ.get("SFTP_HOST")
+    try:
+        # Connect to SFTP using paramiko
+        host = os.environ.get("SFTP_HOST")
+        port = 22
+        username = os.environ.get("SFTP_USER")
+        password = os.environ.get("SFTP_PASS")
 
-    sftp_command = f"""
-    echo 'put {filename}' | lftp -u {sftp_user},{sftp_pass} sftp://{sftp_host}
-    """
-    result = os.system(sftp_command)
-    if result != 0:
-        return "❌ Failed to upload via SFTP.", 500
+        transport = paramiko.Transport((host, port))
+        transport.connect(username=username, password=password)
+        sftp = paramiko.SFTPClient.from_transport(transport)
 
-    return "✅ File uploaded successfully!"
+        # Upload file to SFTP server
+        remote_path = f"./{filename}"  # or use absolute if required
+        sftp.put(filename, remote_path)
+
+        sftp.close()
+        transport.close()
+        return "✅ File uploaded successfully!"
+    except Exception as e:
+        return f"❌ Failed to upload via SFTP.\n{str(e)}", 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render provides PORT variable
+    import socket
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
