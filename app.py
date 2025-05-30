@@ -1,50 +1,30 @@
-from flask import Flask, request
+from flask import Flask
 import os
 import paramiko
 
 app = Flask(__name__)
 
-@app.route("/", methods=["GET"])
-def home():
-    return "✅ Middleman is running!"
-
-@app.route("/upload", methods=["POST"])
-def upload():
+@app.route("/test-sftp")
+def test_sftp():
     try:
-        data = request.get_json()
-        filename = data.get("filename", "log.txt")
-        content = data.get("content", "")
-
-        # Save content to a local file temporarily
-        with open(filename, "w") as f:
-            f.write(content)
-
-        # Get SFTP credentials from environment variables
         host = os.environ.get("SFTP_HOST")
         port = 22
         username = os.environ.get("SFTP_USER")
         password = os.environ.get("SFTP_PASS")
 
-        # Connect to the SFTP server
         transport = paramiko.Transport((host, port))
         transport.connect(username=username, password=password)
+
         sftp = paramiko.SFTPClient.from_transport(transport)
+        current_dir = sftp.getcwd()
 
-        # Get the correct default folder (your SFTP home folder)
-        remote_home = sftp.normalize(".")
-        remote_path = f"{remote_home}/{filename}"
-
-        # Upload the file
-        sftp.put(filename, remote_path)
-
-        # Close the connection
         sftp.close()
         transport.close()
 
-        return "✅ File uploaded successfully!"
-    
+        return f"✅ Connected to SFTP. Current directory: {current_dir}"
+
     except Exception as e:
-        return f"❌ Failed to upload via SFTP.\n{str(e)}", 500
+        return f"❌ Failed to connect to SFTP.\n{str(e)}", 500
 
 if __name__ == "__main__":
     import socket
